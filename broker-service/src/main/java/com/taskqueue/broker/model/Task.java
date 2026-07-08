@@ -49,7 +49,7 @@ public class Task implements Serializable{
 
     private Instant nextRetryAt;
 
-    private long leaseVersion;
+    private UUID leaseId;
 
     private int retryCount;
 
