@@ -12,12 +12,6 @@ public interface TaskQueue {
 
     Optional<Task> claimNext(String queueName, String workerId, Duration leaseDuration);
 
-    boolean acknowledge(UUID taskId, UUID leaseId);
-
-    boolean fail(UUID taskId, UUID leaseId, String failureReason);
-
-    boolean releaseLease(UUID taskId, UUID leaseId);
-
     boolean cancel(UUID taskId);
 
     long size(String queueName);
