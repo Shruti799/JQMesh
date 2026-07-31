@@ -8,6 +8,7 @@ public class RedisKeys {
     private static final String LEASE_PREFIX = "lease:";
     private static final String IDEMPOTENCY_PREFIX = "idempotency:";
     private static final String DLQ_PREFIX = "dlq:";
+    private static final String WORKER_PREFIX = "worker:";
 
     private RedisKeys() {
         // Prevent instantiation
@@ -32,5 +33,9 @@ public class RedisKeys {
     public static String deadLetterQueue(String queueName) {
         return DLQ_PREFIX + queueName;
     }
-    
+
+    public static String worker(String workerId) {
+       return WORKER_PREFIX + workerId;
+    }
+
 }
