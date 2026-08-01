@@ -10,31 +10,31 @@ public class RedisKeys {
     private static final String DLQ_PREFIX = "dlq:";
     private static final String WORKER_PREFIX = "worker:";
 
-    private RedisKeys() {
+    private RedisKeys(){
         // Prevent instantiation
     }
 
-    public static String queue(String queueName) {
+    public static String queue(String queueName){
         return QUEUE_PREFIX + queueName;
     }
 
-     public static String task(UUID taskId) {
+     public static String task(UUID taskId){
         return TASK_PREFIX + taskId;
     }
 
-    public static String lease(String leaseId) {
+    public static String lease(String leaseId){
         return LEASE_PREFIX + leaseId;
     }
 
-    public static String idempotency(String idempotencyKey) {
+    public static String idempotency(String idempotencyKey){
         return IDEMPOTENCY_PREFIX + idempotencyKey;
     }
 
-    public static String deadLetterQueue(String queueName) {
+    public static String deadLetterQueue(String queueName){
         return DLQ_PREFIX + queueName;
     }
 
-    public static String worker(String workerId) {
+    public static String worker(String workerId){
        return WORKER_PREFIX + workerId;
     }
 

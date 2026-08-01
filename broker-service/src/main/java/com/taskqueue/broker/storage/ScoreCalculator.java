@@ -5,7 +5,7 @@ import com.taskqueue.broker.model.TaskPriority;
 
 import java.time.Instant;
 
-public final class ScoreCalculator {
+public final class ScoreCalculator{
 
     private static final double HIGH_PRIORITY_WEIGHT = 1_000_000;
     private static final double MEDIUM_PRIORITY_WEIGHT = 500_000;
@@ -15,9 +15,9 @@ public final class ScoreCalculator {
         // Utility class
     }
 
-    public static double calculate(Task task) {
+    public static double calculate(Task task){
 
-        double priorityWeight = switch (task.getPriority()) {
+        double priorityWeight = switch (task.getPriority()){
             case HIGH -> HIGH_PRIORITY_WEIGHT;
             case MEDIUM -> MEDIUM_PRIORITY_WEIGHT;
             case LOW -> LOW_PRIORITY_WEIGHT;
