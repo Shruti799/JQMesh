@@ -44,4 +44,22 @@ public class RedisPriorityQueue implements TaskQueue{
     private void deleteTask(UUID taskId){
         taskRedisTemplate.delete(getTaskKey(taskId));
     }
+
+    @Override
+    public void enqueue(Task task){
+
+        // Calculating the score used for Redis Sorted Set ordering
+        double score = ScoreCalculator.calculate(task);
+        task.setComputedScore(score);
+    
+        // Initializing task state
+        task.setStatus(TaskStatus.QUEUED);
+        task.setUpdatedAt(Instant.now());
+    
+        // Persisting the complete task
+        saveTask(task);
+    
+        // Adding only the taskId to the Redis Sorted Set
+        stringRedisTemplate.opsForZSet().add(getQueueKey(task.getQueueName()), task.getTaskId().toString(),score);
+    }
 }
