@@ -41,6 +41,10 @@ public class RedisPriorityQueue implements TaskQueue{
         return Optional.ofNullable(task);
     }
 
+    private Optional<Task> getTask(String taskId){
+        return getTask(UUID.fromString(taskId));
+    }
+
     private void deleteTask(UUID taskId){
         taskRedisTemplate.delete(getTaskKey(taskId));
     }
@@ -80,9 +84,7 @@ public class RedisPriorityQueue implements TaskQueue{
         if(optionalTask.isEmpty()){
     
             //Removing stale entry from queue
-            stringRedisTemplate
-                    .opsForZSet()
-                    .remove(getQueueKey(queueName), taskId);
+            stringRedisTemplate.opsForZSet().remove(getQueueKey(queueName), taskId);
     
             return Optional.empty();
         }
