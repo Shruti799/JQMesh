@@ -62,4 +62,53 @@ public class RedisPriorityQueue implements TaskQueue{
         // Adding only the taskId to the Redis Sorted Set
         stringRedisTemplate.opsForZSet().add(getQueueKey(task.getQueueName()), task.getTaskId().toString(),score);
     }
+
+    @Override
+    public Optional<Task> claimNext(String queueName, String workerId, Duration leaseDuration){
+    
+        //Get the highest priority task id
+        Set<String> taskIds = stringRedisTemplate.opsForZSet().reverseRange(getQueueKey(queueName), 0, 0);
+    
+        if(taskIds == null || taskIds.isEmpty()){
+            return Optional.empty();
+        }
+    
+        String taskId = taskIds.iterator().next();
+    
+        Optional<Task> optionalTask = getTask(taskId);
+    
+        if(optionalTask.isEmpty()){
+    
+            //Removing stale entry from queue
+            stringRedisTemplate
+                    .opsForZSet()
+                    .remove(getQueueKey(queueName), taskId);
+    
+            return Optional.empty();
+        }
+    
+        Task task = optionalTask.get();
+
+        if(task.getStartedAt() == null){
+            task.setStartedAt(Instant.now());
+        }
+    
+        task.setStatus(TaskStatus.IN_PROGRESS);
+
+        task.setWorkerId(workerId);
+    
+        task.setLeaseId(UUID.randomUUID());
+    
+        task.setLeasedUntil(Instant.now().plus(leaseDuration));
+    
+        task.setDeliveryCount(task.getDeliveryCount() + 1);
+    
+        task.setUpdatedAt(Instant.now());
+    
+        saveTask(task);
+    
+        stringRedisTemplate.opsForZSet().remove(getQueueKey(queueName),taskId);
+    
+        return Optional.of(task);
+    }
 }
