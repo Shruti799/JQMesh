@@ -38,7 +38,7 @@ public class RedisKeys {
        return WORKER_PREFIX + workerId;
     }
 
-    public static String processingQueue(String queueName) {
+    public static String processingQueue(String queueName){
        return "processing:" + queueName;
     }
 

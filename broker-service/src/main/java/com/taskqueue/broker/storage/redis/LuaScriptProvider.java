@@ -5,22 +5,22 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 @Component
-public class LuaScriptProvider {
+public class LuaScriptProvider{
 
     private final DefaultRedisScript<String> claimTaskScript;
 
-    public LuaScriptProvider() {
+    public LuaScriptProvider(){
 
         claimTaskScript = new DefaultRedisScript<>();
 
         claimTaskScript.setLocation(
-                new ClassPathResource("scripts/claim-task.lua")
+            new ClassPathResource("scripts/claim-task.lua")
         );
 
         claimTaskScript.setResultType(String.class);
     }
 
-    public DefaultRedisScript<String> getClaimTaskScript() {
+    public DefaultRedisScript<String> getClaimTaskScript(){
         return claimTaskScript;
     }
 }

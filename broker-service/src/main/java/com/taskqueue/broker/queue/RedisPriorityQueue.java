@@ -4,6 +4,7 @@ import com.taskqueue.broker.model.Task;
 import com.taskqueue.broker.model.TaskStatus;
 import com.taskqueue.broker.storage.ScoreCalculator;
 import com.taskqueue.broker.storage.redis.RedisKeys;
+import com.taskqueue.broker.storage.redis.LuaScriptProvider;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -11,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -19,9 +21,12 @@ public class RedisPriorityQueue implements TaskQueue{
 
     private final RedisTemplate<String, Task> taskRedisTemplate;
 
-    public RedisPriorityQueue(RedisTemplate<String, String> stringRedisTemplate, RedisTemplate<String, Task> taskRedisTemplate){
+    private final LuaScriptProvider luaScriptProvider;
+
+    public RedisPriorityQueue(RedisTemplate<String, String> stringRedisTemplate, RedisTemplate<String, Task> taskRedisTemplate, LuaScriptProvider luaScriptProvider){
         this.stringRedisTemplate = stringRedisTemplate;
         this.taskRedisTemplate = taskRedisTemplate;
+        this.luaScriptProvider = luaScriptProvider;
     }
 
     private String getQueueKey(String queueName){
@@ -70,47 +75,44 @@ public class RedisPriorityQueue implements TaskQueue{
     @Override
     public Optional<Task> claimNext(String queueName, String workerId, Duration leaseDuration){
     
-        //Get the highest priority task id
-        Set<String> taskIds = stringRedisTemplate.opsForZSet().reverseRange(getQueueKey(queueName), 0, 0);
+        Instant now = Instant.now();
+        Instant leaseExpiry = now.plus(leaseDuration);
     
-        if(taskIds == null || taskIds.isEmpty()){
+        String taskId = stringRedisTemplate.execute(luaScriptProvider.getClaimTaskScript(),
+            List.of(getQueueKey(queueName), RedisKeys.processingQueue(queueName)),
+            String.valueOf(leaseExpiry.toEpochMilli())
+        );
+    
+        if (taskId == null){
             return Optional.empty();
         }
-    
-        String taskId = taskIds.iterator().next();
     
         Optional<Task> optionalTask = getTask(taskId);
     
         if(optionalTask.isEmpty()){
-    
-            //Removing stale entry from queue
-            stringRedisTemplate.opsForZSet().remove(getQueueKey(queueName), taskId);
-    
-            return Optional.empty();
+           return Optional.empty();
         }
-    
-        Task task = optionalTask.get();
 
+        Task task = optionalTask.get();
+    
         if(task.getStartedAt() == null){
-            task.setStartedAt(Instant.now());
+            task.setStartedAt(now);
         }
     
         task.setStatus(TaskStatus.IN_PROGRESS);
-
+    
         task.setWorkerId(workerId);
     
         task.setLeaseId(UUID.randomUUID());
     
-        task.setLeasedUntil(Instant.now().plus(leaseDuration));
+        task.setLeasedUntil(leaseExpiry);
     
         task.setDeliveryCount(task.getDeliveryCount() + 1);
-    
-        task.setUpdatedAt(Instant.now());
-    
+
+        task.setUpdatedAt(now);
+
         saveTask(task);
-    
-        stringRedisTemplate.opsForZSet().remove(getQueueKey(queueName),taskId);
-    
+
         return Optional.of(task);
     }
 }
