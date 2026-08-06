@@ -115,4 +115,32 @@ public class RedisPriorityQueue implements TaskQueue{
 
         return Optional.of(task);
     }
+
+    @Override
+    public boolean cancel(UUID taskId){
+    
+        Optional<Task> optionalTask = getTask(taskId);
+    
+        if(optionalTask.isEmpty()){
+            return false;
+        }
+    
+        Task task = optionalTask.get();
+    
+        if(task.getStatus() == TaskStatus.IN_PROGRESS){
+            return false;
+        }
+    
+        task.setStatus(TaskStatus.CANCELLED);
+        task.setUpdatedAt(Instant.now());
+    
+        saveTask(task);
+    
+        stringRedisTemplate.opsForZSet().remove(
+            getQueueKey(task.getQueueName()),
+            taskId.toString()
+        );
+    
+        return true;
+    }
 }

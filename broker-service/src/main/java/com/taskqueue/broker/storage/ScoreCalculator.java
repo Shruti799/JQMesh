@@ -25,9 +25,7 @@ public final class ScoreCalculator{
 
         double agingBonus = Instant.now().getEpochSecond() - task.getCreatedAt().getEpochSecond();
 
-        double retryPenalty = task.getRetryCount() * 1000;
-
-        return priorityWeight + agingBonus - retryPenalty;
+        return priorityWeight + agingBonus;
     }
     
 }
