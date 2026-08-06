@@ -143,4 +143,50 @@ public class RedisPriorityQueue implements TaskQueue{
     
         return true;
     }
+
+    @Override
+    public long size(String queueName){
+    
+        Long size = stringRedisTemplate
+            .opsForZSet()
+            .zCard(getQueueKey(queueName));
+    
+        return size == null ? 0 : size;
+    }
+
+    @Override
+    public boolean isEmpty(String queueName){
+        return size(queueName) == 0;
+    }
+
+    @Override
+    public void requeue(Task task){
+    
+        task.setStatus(TaskStatus.QUEUED);
+    
+        task.setWorkerId(null);
+    
+        task.setLeaseId(null);
+    
+        task.setLeasedUntil(null);
+    
+        task.setUpdatedAt(Instant.now());
+    
+        double score = ScoreCalculator.calculate(task);
+    
+        task.setComputedScore(score);
+    
+        saveTask(task);
+    
+        stringRedisTemplate.opsForZSet().remove(
+            RedisKeys.processingQueue(task.getQueueName()),
+            task.getTaskId().toString()
+        );
+    
+        stringRedisTemplate.opsForZSet().add(
+            getQueueKey(task.getQueueName()),
+            task.getTaskId().toString(),
+            score
+        );
+    }
 }
