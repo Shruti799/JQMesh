@@ -177,16 +177,17 @@ public class RedisPriorityQueue implements TaskQueue{
         task.setComputedScore(score);
     
         saveTask(task);
-    
+
+        // Remove from processing queue
         stringRedisTemplate.opsForZSet().remove(
             RedisKeys.processingQueue(task.getQueueName()),
             task.getTaskId().toString()
         );
-    
+
+        // Add to the main queue with updated score
         stringRedisTemplate.opsForZSet().add(
             getQueueKey(task.getQueueName()),
-            task.getTaskId().toString(),
-            score
+            task.getTaskId().toString(), score
         );
     }
 }
