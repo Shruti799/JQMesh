@@ -42,4 +42,7 @@ public class RedisKeys {
        return "processing:" + queueName;
     }
 
+    public static String queueRegistry(){
+       return "queues";
+    }
 }
