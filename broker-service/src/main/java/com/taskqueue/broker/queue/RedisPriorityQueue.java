@@ -57,6 +57,11 @@ public class RedisPriorityQueue implements TaskQueue{
     @Override
     public void enqueue(Task task){
 
+        String queueName = task.getQueueName();
+
+        // Register the queue so that schedulers can discover it
+        stringRedisTemplate.opsForSet().add(RedisKeys.queueRegistry(), queueName);
+
         // Calculating the score used for Redis Sorted Set ordering
         double score = ScoreCalculator.calculate(task);
         task.setComputedScore(score);
@@ -69,7 +74,7 @@ public class RedisPriorityQueue implements TaskQueue{
         saveTask(task);
     
         // Adding only the taskId to the Redis Sorted Set
-        stringRedisTemplate.opsForZSet().add(getQueueKey(task.getQueueName()), task.getTaskId().toString(),score);
+        stringRedisTemplate.opsForZSet().add(getQueueKey(queueName), task.getTaskId().toString(),score);
     }
 
     @Override
