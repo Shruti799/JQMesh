@@ -6,13 +6,12 @@ import com.taskqueue.broker.storage.redis.RedisKeys;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import com.taskqueue.broker.queue.TaskQueue;
 
-import com.taskqueue.broker.model.TaskStatus;
 import com.taskqueue.broker.queue.TaskQueue;
+import com.taskqueue.broker.model.TaskStatus;
+
 
 import java.time.Instant;
-import java.util.Collections;
 import java.util.Set;
 
 @Component
@@ -35,37 +34,38 @@ public class RetryScheduler{
 
         Set<String> queueNames = stringRedisTemplate.opsForSet().members(RedisKeys.queueRegistry());
 
-        if(queueNames == null || queueNames.isEmpty()){
-            return;
-        }
 
         long now = Instant.now().toEpochMilli();
 
-        for(String queueName : queueNames){
+        if(queueNames != null && !queueNames.isEmpty()){
 
-            String processingQueueKey = RedisKeys.processingQueue(queueName);
-
-            Set<String> expiredTaskIds = stringRedisTemplate.opsForZSet().rangeByScore(processingQueueKey,0,now);
-
-            if(expiredTaskIds == null || expiredTaskIds.isEmpty()){
-                continue;
-            }
-
-            for(String taskId : expiredTaskIds){
+            for(String queueName : queueNames){
     
-                Task task = taskRedisTemplate.opsForValue().get("task:" + taskId);
-
-                if(task == null){
+                String processingQueueKey = RedisKeys.processingQueue(queueName);
+    
+                Set<String> expiredTaskIds = stringRedisTemplate.opsForZSet().rangeByScore(processingQueueKey,0,now);
+    
+                if(expiredTaskIds == null || expiredTaskIds.isEmpty()){
                     continue;
                 }
-                retryService.retry(task);
-
-                taskRedisTemplate.opsForValue().set("task:" + taskId, task);
-
-                stringRedisTemplate.opsForZSet().remove(processingQueueKey, taskId);
-            }
-        }
+    
+                for(String taskId : expiredTaskIds){
         
+                    Task task = taskRedisTemplate.opsForValue().get("task:" + taskId);
+    
+                    if(task == null){
+                        continue;
+                    }
+                    retryService.retry(task);
+    
+                    taskRedisTemplate.opsForValue().set("task:" + taskId, task);
+    
+                    stringRedisTemplate.opsForZSet().remove(processingQueueKey, taskId);
+                }
+            }
+
+        }
+
         processRetryPendingTasks(
             Instant.now().toEpochMilli()
         );
