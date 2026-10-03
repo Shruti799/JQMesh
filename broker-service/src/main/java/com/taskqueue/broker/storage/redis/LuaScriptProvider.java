@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 public class LuaScriptProvider{
 
     private final DefaultRedisScript<String> claimTaskScript;
+    private final DefaultRedisScript<String> retryTaskScript;
 
     public LuaScriptProvider(){
 
@@ -18,9 +19,19 @@ public class LuaScriptProvider{
         );
 
         claimTaskScript.setResultType(String.class);
+
+        retryTaskScript = new DefaultRedisScript<>();
+
+        retryTaskScript.setLocation(new ClassPathResource("scripts/retry-task.lua"));
+
+        retryTaskScript.setResultType(String.class);
     }
 
     public DefaultRedisScript<String> getClaimTaskScript(){
         return claimTaskScript;
+    }
+
+    public DefaultRedisScript<String> getRetryTaskScript() {
+        return retryTaskScript;
     }
 }
