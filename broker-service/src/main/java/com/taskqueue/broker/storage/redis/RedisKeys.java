@@ -45,4 +45,8 @@ public class RedisKeys {
     public static String queueRegistry(){
        return "queues";
     }
+
+    public static String retryPendingQueue() {
+      return "retry:pending";
+    }
 }
