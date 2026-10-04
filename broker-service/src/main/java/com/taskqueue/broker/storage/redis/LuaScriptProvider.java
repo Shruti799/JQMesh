@@ -9,7 +9,7 @@ public class LuaScriptProvider{
 
     private final DefaultRedisScript<String> claimTaskScript;
     private final DefaultRedisScript<String> retryTaskScript;
-    private final DefaultRedisScript<String> ackTaskScript;
+    private final DefaultRedisScript<Long> ackTaskScript;
 
     public LuaScriptProvider(){
 
@@ -31,7 +31,7 @@ public class LuaScriptProvider{
 
         ackTaskScript.setLocation(new ClassPathResource("scripts/ack-task.lua"));
 
-        ackTaskScript.setResultType(String.class);
+        ackTaskScript.setResultType(Long.class);
     }
 
     public DefaultRedisScript<String> getClaimTaskScript(){
@@ -42,7 +42,7 @@ public class LuaScriptProvider{
         return retryTaskScript;
     }
 
-    public DefaultRedisScript<String> getAckTaskScript(){
+    public DefaultRedisScript<Long> getAckTaskScript(){
         return ackTaskScript;
     }
 }

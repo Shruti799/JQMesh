@@ -50,13 +50,13 @@ public class AckService{
         String processingQueueKey = RedisKeys.processingQueue(task.getQueueName());
 
         // Executing ACK Lua script
-        DefaultRedisScript<String> ackScript = luaScriptProvider.getAckTaskScript();
+        DefaultRedisScript<Long> ackScript = luaScriptProvider.getAckTaskScript();
 
-        String result = stringRedisTemplate.execute(ackScript, Collections.singletonList(processingQueueKey),taskId.toString());
+        Long result = stringRedisTemplate.execute(ackScript, Collections.singletonList(processingQueueKey),taskId.toString());
 
         // Lua script failed to remove the task
-        if(!"1".equals(result)){
-            return false;
+        if(result == null || result != 1L){
+           return false;
         }
 
         Instant now = Instant.now();
