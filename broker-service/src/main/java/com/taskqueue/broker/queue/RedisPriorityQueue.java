@@ -121,6 +121,7 @@ public class RedisPriorityQueue implements TaskQueue{
         return Optional.of(task);
     }
 
+
     @Override
     public boolean cancel(UUID taskId){
     
@@ -132,7 +133,23 @@ public class RedisPriorityQueue implements TaskQueue{
     
         Task task = optionalTask.get();
     
-        if(task.getStatus() == TaskStatus.IN_PROGRESS){
+        if(task.getStatus() == TaskStatus.IN_PROGRESS
+                || task.getStatus() == TaskStatus.CANCELLED
+                || task.getStatus() == TaskStatus.COMPLETED
+                || task.getStatus() == TaskStatus.DEAD_LETTER){
+            return false;
+        }
+    
+        Long removed = stringRedisTemplate.execute(
+            luaScriptProvider.getCancelTaskScript(),
+            List.of(
+                getQueueKey(task.getQueueName()),
+                RedisKeys.retryPendingQueue()
+            ),
+            taskId.toString()
+        );
+    
+        if (removed == null || removed == 0L){
             return false;
         }
     
@@ -141,13 +158,9 @@ public class RedisPriorityQueue implements TaskQueue{
     
         saveTask(task);
     
-        stringRedisTemplate.opsForZSet().remove(
-            getQueueKey(task.getQueueName()),
-            taskId.toString()
-        );
-    
         return true;
     }
+
 
     @Override
     public long size(String queueName){
