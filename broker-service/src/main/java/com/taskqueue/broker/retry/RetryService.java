@@ -1,8 +1,10 @@
+
 package com.taskqueue.broker.retry;
 
 import com.taskqueue.broker.model.Task;
 import com.taskqueue.broker.model.TaskStatus;
 import com.taskqueue.broker.queue.TaskQueue;
+import com.taskqueue.broker.storage.redis.LuaScriptProvider;
 import com.taskqueue.broker.storage.redis.RedisKeys;
 
 import org.springframework.data.redis.core.RedisTemplate;
@@ -10,56 +12,73 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 
 @Service
 public class RetryService{
 
-    private final TaskQueue taskQueue;
     private final RetryPolicy retryPolicy;
     private final RedisTemplate<String, String> stringRedisTemplate;
+    private final RedisTemplate<String, Task> taskRedisTemplate;
+    private final LuaScriptProvider luaScriptProvider;
 
-    public RetryService(TaskQueue taskQueue, RetryPolicy retryPolicy, RedisTemplate<String, String> stringRedisTemplate){
-        this.taskQueue = taskQueue;
+    public RetryService(
+            RetryPolicy retryPolicy,
+            RedisTemplate<String, String> stringRedisTemplate,
+            RedisTemplate<String, Task> taskRedisTemplate,
+            LuaScriptProvider luaScriptProvider){
+
         this.retryPolicy = retryPolicy;
         this.stringRedisTemplate = stringRedisTemplate;
+        this.taskRedisTemplate = taskRedisTemplate;
+        this.luaScriptProvider = luaScriptProvider;
     }
 
     public boolean retry(Task task){
 
-        // Checking whether the task has exhausted its retries
-        if (task.getRetryCount() >= task.getMaxRetries()){
+        String taskKey = RedisKeys.task(task.getTaskId());
 
+        // Handling exhausted retries.
+        if(task.getRetryCount() >= task.getMaxRetries()){
             task.setStatus(TaskStatus.DEAD_LETTER);
             task.setUpdatedAt(Instant.now());
 
+            taskRedisTemplate.opsForValue().set(taskKey, task);
+
+            // DLQ movement will be implemented separately.
             return false;
         }
 
-        // Incrementing retry count
+        // Calculate the next retry time.
         task.setRetryCount(task.getRetryCount() + 1);
 
-        // Calculating retry delay
         Duration delay = retryPolicy.computeDelay(task);
-
         Instant nextRetryAt = Instant.now().plus(delay);
 
-        // Setting the time when the task becomes eligible again
         task.setNextRetryAt(nextRetryAt);
-
-        // Task is waiting for its retry time
         task.setStatus(TaskStatus.RETRY_PENDING);
-
         task.setWorkerId(null);
         task.setLeaseId(null);
         task.setLeasedUntil(null);
-
         task.setUpdatedAt(Instant.now());
 
-        stringRedisTemplate.opsForZSet().add(
-            RedisKeys.retryPendingQueue(),
+        // Atomically move the task from processing to retry-pending.
+        Long moved = stringRedisTemplate.execute(
+            luaScriptProvider.getRetryTaskScript(),
+            List.of(
+                RedisKeys.processingQueue(task.getQueueName()),
+                RedisKeys.retryPendingQueue()
+            ),
             task.getTaskId().toString(),
-            nextRetryAt.toEpochMilli()
+            String.valueOf(nextRetryAt.toEpochMilli())
         );
+
+        if (moved == null || moved != 1L){
+            return false;
+        }
+
+        // Persist the updated task metadata.
+        taskRedisTemplate.opsForValue().set(taskKey, task);
 
         return true;
     }
