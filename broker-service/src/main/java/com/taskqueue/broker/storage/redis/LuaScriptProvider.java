@@ -1,5 +1,7 @@
 package com.taskqueue.broker.storage.redis;
 
+import java.nio.LongBuffer;
+
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
@@ -8,7 +10,7 @@ import org.springframework.stereotype.Component;
 public class LuaScriptProvider{
 
     private final DefaultRedisScript<String> claimTaskScript;
-    private final DefaultRedisScript<String> retryTaskScript;
+    private final DefaultRedisScript<Long> retryTaskScript;
     private final DefaultRedisScript<Long> ackTaskScript;
     private final DefaultRedisScript<Long> cancelTaskScript;
 
@@ -26,7 +28,7 @@ public class LuaScriptProvider{
 
         retryTaskScript.setLocation(new ClassPathResource("scripts/retry-task.lua"));
 
-        retryTaskScript.setResultType(String.class);
+        retryTaskScript.setResultType(Long.class);
 
         ackTaskScript = new DefaultRedisScript<>();
 
@@ -45,7 +47,7 @@ public class LuaScriptProvider{
         return claimTaskScript;
     }
 
-    public DefaultRedisScript<String> getRetryTaskScript(){
+    public DefaultRedisScript<Long> getRetryTaskScript(){
         return retryTaskScript;
     }
 
