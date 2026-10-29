@@ -36,7 +36,7 @@ public class LuaScriptProvider{
 
         cancelTaskScript = new DefaultRedisScript<>();
 
-        cancelTaskScript.setLocation(new ClassPathResource("lua/cancel-task.lua"));
+        cancelTaskScript.setLocation(new ClassPathResource("scripts/cancel-task.lua"));
 
         cancelTaskScript.setResultType(Long.class);
     }
