@@ -49,19 +49,12 @@ public class RetryService{
             return false;
         }
 
-        // Calculate the next retry time.
+        // Calculate retry delay using the next retry count.
         task.setRetryCount(task.getRetryCount() + 1);
-
+        
         Duration delay = retryPolicy.computeDelay(task);
         Instant nextRetryAt = Instant.now().plus(delay);
-
-        task.setNextRetryAt(nextRetryAt);
-        task.setStatus(TaskStatus.RETRY_PENDING);
-        task.setWorkerId(null);
-        task.setLeaseId(null);
-        task.setLeasedUntil(null);
-        task.setUpdatedAt(Instant.now());
-
+        
         // Atomically move the task from processing to retry-pending.
         Long moved = stringRedisTemplate.execute(
             luaScriptProvider.getRetryTaskScript(),
@@ -72,14 +65,24 @@ public class RetryService{
             task.getTaskId().toString(),
             String.valueOf(nextRetryAt.toEpochMilli())
         );
-
+        
         if (moved == null || moved != 1L){
+            // Restore retry count because the retry operation failed.
+            task.setRetryCount(task.getRetryCount() - 1);
             return false;
         }
-
-        // Persist the updated task metadata.
+        
+        // Update task metadata only after successful queue movement.
+        task.setNextRetryAt(nextRetryAt);
+        task.setStatus(TaskStatus.RETRY_PENDING);
+        task.setWorkerId(null);
+        task.setLeaseId(null);
+        task.setLeasedUntil(null);
+        task.setUpdatedAt(Instant.now());
+        
+        // Persist updated task metadata.
         taskRedisTemplate.opsForValue().set(taskKey, task);
-
+        
         return true;
     }
 }
