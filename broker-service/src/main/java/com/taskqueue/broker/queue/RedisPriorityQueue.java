@@ -95,6 +95,10 @@ public class RedisPriorityQueue implements TaskQueue{
         Optional<Task> optionalTask = getTask(taskId);
     
         if(optionalTask.isEmpty()){
+            stringRedisTemplate.opsForZSet().remove(
+                RedisKeys.processingQueue(queueName),
+                taskId
+           );
            return Optional.empty();
         }
 
