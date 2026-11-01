@@ -13,6 +13,9 @@ public class LuaScriptProvider{
     private final DefaultRedisScript<Long> retryTaskScript;
     private final DefaultRedisScript<Long> ackTaskScript;
     private final DefaultRedisScript<Long> cancelTaskScript;
+    private final DefaultRedisScript<Long> deadLetterTaskScript;
+    private final DefaultRedisScript<Long> redriveTaskScript;
+    private final DefaultRedisScript<Long> removeDeadLetterTaskScript;
 
     public LuaScriptProvider(){
 
@@ -41,6 +44,26 @@ public class LuaScriptProvider{
         cancelTaskScript.setLocation(new ClassPathResource("scripts/cancel-task.lua"));
 
         cancelTaskScript.setResultType(Long.class);
+
+        deadLetterTaskScript = new DefaultRedisScript<>();
+
+        deadLetterTaskScript.setLocation(new ClassPathResource("scripts/dead-letter-task.lua"));
+
+        deadLetterTaskScript.setResultType(Long.class);
+
+        redriveTaskScript = new DefaultRedisScript<>();
+
+        redriveTaskScript.setLocation(new ClassPathResource("scripts/redrive-task.lua"));
+
+        redriveTaskScript.setResultType(Long.class);
+
+        removeDeadLetterTaskScript = new DefaultRedisScript<>();
+
+        removeDeadLetterTaskScript.setLocation(new ClassPathResource("scripts/remove-dead-letter-task.lua"));
+
+        removeDeadLetterTaskScript.setResultType(Long.class);
+
+
     }
 
     public DefaultRedisScript<String> getClaimTaskScript(){
