@@ -6,6 +6,7 @@ import com.taskqueue.broker.model.TaskStatus;
 import com.taskqueue.broker.queue.TaskQueue;
 import com.taskqueue.broker.storage.redis.LuaScriptProvider;
 import com.taskqueue.broker.storage.redis.RedisKeys;
+import com.taskqueue.broker.dlq.DeadLetterService;
 
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -21,17 +22,19 @@ public class RetryService{
     private final RedisTemplate<String, String> stringRedisTemplate;
     private final RedisTemplate<String, Task> taskRedisTemplate;
     private final LuaScriptProvider luaScriptProvider;
+    private final DeadLetterService deadLetterService;
 
     public RetryService(
             RetryPolicy retryPolicy,
             RedisTemplate<String, String> stringRedisTemplate,
             RedisTemplate<String, Task> taskRedisTemplate,
-            LuaScriptProvider luaScriptProvider){
+            LuaScriptProvider luaScriptProvider, DeadLetterService deadLetterService){
 
         this.retryPolicy = retryPolicy;
         this.stringRedisTemplate = stringRedisTemplate;
         this.taskRedisTemplate = taskRedisTemplate;
         this.luaScriptProvider = luaScriptProvider;
+        this.deadLetterService = deadLetterService;
     }
 
     public boolean retry(Task task){
@@ -40,13 +43,7 @@ public class RetryService{
 
         // Handling exhausted retries.
         if(task.getRetryCount() >= task.getMaxRetries()){
-            task.setStatus(TaskStatus.DEAD_LETTER);
-            task.setUpdatedAt(Instant.now());
-
-            taskRedisTemplate.opsForValue().set(taskKey, task);
-
-            // DLQ movement will be implemented separately.
-            return false;
+           return deadLetterService.moveToDeadLetter(task);
         }
 
         // Calculate retry delay using the next retry count.

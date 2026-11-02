@@ -17,7 +17,7 @@ public class LuaScriptProvider{
     private final DefaultRedisScript<Long> redriveTaskScript;
     private final DefaultRedisScript<Long> removeDeadLetterTaskScript;
 
-    public LuaScriptProvider(){
+    public LuaScriptProvider(){ 
 
         claimTaskScript = new DefaultRedisScript<>();
 
@@ -78,7 +78,19 @@ public class LuaScriptProvider{
         return ackTaskScript;
     }
 
-    public DefaultRedisScript<Long> getCancelTaskScript() {
+    public DefaultRedisScript<Long> getCancelTaskScript(){
         return cancelTaskScript;
+    }
+
+    public DefaultRedisScript<Long> getDeadLetterTaskScript(){
+       return deadLetterTaskScript;
+    }
+
+    public DefaultRedisScript<Long> getRedriveTaskScript(){
+        return redriveTaskScript;
+    }
+
+    public DefaultRedisScript<Long> getRemoveDeadLetterTaskScript(){
+        return removeDeadLetterTaskScript;
     }
 }

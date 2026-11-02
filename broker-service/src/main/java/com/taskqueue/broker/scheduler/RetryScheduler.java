@@ -67,13 +67,7 @@ public class RetryScheduler {
                         continue;
                     }
 
-                    boolean retried = retryService.retry(task);
-
-                    if(!retried && task.getStatus() == TaskStatus.DEAD_LETTER){
-                        // DLQ movement is not implemented yet.
-                        // Avoiding repeatedly processing this task.
-                        stringRedisTemplate.opsForZSet().remove(processingQueueKey, taskId);
-                    }
+                    retryService.retry(task);
                 }
             }
         }
