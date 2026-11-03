@@ -4,16 +4,21 @@ package com.taskqueue.broker.retry;
 import com.taskqueue.broker.model.*;
 import com.taskqueue.broker.storage.redis.LuaScriptProvider;
 import com.taskqueue.broker.config.RedisConfig;
+import com.taskqueue.broker.dlq.DeadLetterService;
 import com.taskqueue.broker.storage.redis.RedisKeys;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+
 
 import java.time.Duration;
 import java.time.Instant;
@@ -33,6 +38,11 @@ class RetryServiceTest{
     static class TestConfig{
 
         @Bean
+        public DeadLetterService deadLetterService(){
+            return Mockito.mock(DeadLetterService.class);
+        }
+
+        @Bean
         RetryPolicy retryPolicy(){
             return task -> Duration.ofSeconds(30);
         }
@@ -42,16 +52,21 @@ class RetryServiceTest{
                 RetryPolicy retryPolicy,
                 RedisTemplate<String, String> stringRedisTemplate,
                 RedisTemplate<String, Task> taskRedisTemplate,
-                LuaScriptProvider luaScriptProvider){
+                LuaScriptProvider luaScriptProvider,
+                DeadLetterService deadLetterService){
 
             return new RetryService(
                 retryPolicy,
                 stringRedisTemplate,
                 taskRedisTemplate,
-                luaScriptProvider
+                luaScriptProvider,
+                deadLetterService
             );
         }
     }
+
+    @Autowired
+    private DeadLetterService deadLetterService;
 
     @org.springframework.beans.factory.annotation.Autowired
     private RetryService retryService;
@@ -175,9 +190,25 @@ class RetryServiceTest{
             task
         );
 
+        Mockito.when(deadLetterService.moveToDeadLetter(task))
+           .thenAnswer(invocation -> {
+               task.setStatus(TaskStatus.DEAD_LETTER);
+               task.setWorkerId(null);
+               task.setLeaseId(null);
+               task.setLeasedUntil(null);
+               task.setUpdatedAt(Instant.now());
+
+               taskRedisTemplate.opsForValue().set(
+                   RedisKeys.task(task.getTaskId()),
+                   task
+               );
+
+               return true;
+        });
+
         boolean result = retryService.retry(task);
 
-        assertFalse(result);
+        assertTrue(result);
         assertEquals(TaskStatus.DEAD_LETTER, task.getStatus());
 
         Task savedTask = taskRedisTemplate.opsForValue().get(
@@ -186,6 +217,8 @@ class RetryServiceTest{
 
         assertNotNull(savedTask);
         assertEquals(TaskStatus.DEAD_LETTER, savedTask.getStatus());
+
+        Mockito.verify(deadLetterService).moveToDeadLetter(task);
 
         // DLQ movement is not implemented yet.
         assertEquals(
