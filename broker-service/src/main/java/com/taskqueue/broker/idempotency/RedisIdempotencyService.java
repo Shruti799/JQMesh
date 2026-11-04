@@ -1,18 +1,21 @@
 package com.taskqueue.broker.idempotency;
 
 import com.taskqueue.broker.storage.redis.RedisKeys;
+import com.taskqueue.broker.storage.redis.LuaScriptProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class RedisIdempotencyService implements IdempotencyService{
 
     private final RedisTemplate<String, String> redisTemplate;
+    private final LuaScriptProvider luaScriptProvider;
 
     private static final Duration IDEMPOTENCY_TTL = Duration.ofDays(7);
 
@@ -34,5 +37,17 @@ public class RedisIdempotencyService implements IdempotencyService{
         );
 
         return Boolean.TRUE.equals(registered);
+    }
+
+    @Override
+    public boolean release(String idempotencyKey, UUID taskId){
+
+        Long deleted = redisTemplate.execute(
+            luaScriptProvider.getReleaseIdempotencyScript(),
+            List.of(RedisKeys.idempotency(idempotencyKey)),
+            taskId.toString()
+        );
+
+        return deleted != null && deleted == 1L;
     }
 }

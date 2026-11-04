@@ -16,6 +16,7 @@ public class LuaScriptProvider{
     private final DefaultRedisScript<Long> deadLetterTaskScript;
     private final DefaultRedisScript<Long> redriveTaskScript;
     private final DefaultRedisScript<Long> removeDeadLetterTaskScript;
+    private final DefaultRedisScript<Long> releaseIdempotencyScript;
 
     public LuaScriptProvider(){ 
 
@@ -63,6 +64,12 @@ public class LuaScriptProvider{
 
         removeDeadLetterTaskScript.setResultType(Long.class);
 
+        releaseIdempotencyScript = new DefaultRedisScript<>();
+
+        releaseIdempotencyScript.setLocation(new ClassPathResource("scripts/release-idempotency.lua"));
+
+        releaseIdempotencyScript.setResultType(Long.class);
+
 
     }
 
@@ -92,5 +99,9 @@ public class LuaScriptProvider{
 
     public DefaultRedisScript<Long> getRemoveDeadLetterTaskScript(){
         return removeDeadLetterTaskScript;
+    }
+
+    public DefaultRedisScript<Long> getReleaseIdempotencyScript() {
+       return releaseIdempotencyScript;
     }
 }

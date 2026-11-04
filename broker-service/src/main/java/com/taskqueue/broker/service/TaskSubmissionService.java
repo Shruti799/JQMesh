@@ -17,24 +17,47 @@ public class TaskSubmissionService{
 
     public UUID submit(Task task, String idempotencyKey){
 
-        // Check whether this request was already processed.
+        if(task == null){
+            throw new IllegalArgumentException("Task cannot be null");
+        }
+
+        if(idempotencyKey == null || idempotencyKey.isBlank()){
+            throw new IllegalArgumentException("Idempotency key cannot be empty");
+        }
+
+        // Check for an existing submission.
         UUID existingTaskId = idempotencyService.getExistingTaskId(idempotencyKey);
 
         if(existingTaskId != null){
             return existingTaskId;
         }
 
-        // Reserve the idempotency key before enqueueing.
+        // Atomically register the key.
         boolean registered = idempotencyService.register(idempotencyKey, task.getTaskId());
 
         if(!registered){
-            // Another concurrent request registered the same key.
-            return idempotencyService.getExistingTaskId(idempotencyKey);
+            // Another request may have registered this key concurrently.
+            UUID concurrentTaskId = idempotencyService.getExistingTaskId(idempotencyKey);
+
+            if(concurrentTaskId != null){
+                return concurrentTaskId;
+            }
+
+            throw new IllegalStateException("Unable to resolve concurrent task submission");
         }
 
-        // Enqueue only after successful registration.
-        taskQueue.enqueue(task);
+        try{
+            // Enqueue only after successful registration.
+            taskQueue.enqueue(task);
 
-        return task.getTaskId();
+            return task.getTaskId();
+
+        }catch(RuntimeException exception){
+
+            // Release only if the mapping still belongs to this task.
+            idempotencyService.release(idempotencyKey, task.getTaskId());
+
+            throw exception;
+        }
     }
 }

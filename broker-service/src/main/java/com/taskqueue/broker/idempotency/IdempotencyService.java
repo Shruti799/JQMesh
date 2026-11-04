@@ -14,4 +14,6 @@ public interface IdempotencyService{
     // Returns true if registration succeeds, false if the key already exists.
     
     boolean register(String idempotencyKey, UUID taskId);
+
+    boolean release(String idempotencyKey, UUID taskId);
 }
